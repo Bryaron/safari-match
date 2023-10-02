@@ -2,8 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography.X509Certificates;
-using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 public class Board : MonoBehaviour {
@@ -63,17 +61,18 @@ public class Board : MonoBehaviour {
 
     private void ClearPieceAt(int x, int y) {
         var pieceToClear = Pieces[x, y];
-        Destroy(pieceToClear.gameObject);
+        pieceToClear.Remove(true);
         Pieces[x, y] = null;
     }
 
     private Piece CreatePieceAt(int x, int y) {
         var selectedPiece = availablePieces[UnityEngine.Random.Range(0,availablePieces.Length)];
-        var o = Instantiate(selectedPiece, new Vector3(x, y, -5), Quaternion.identity);
+        var o = Instantiate(selectedPiece, new Vector3(x, y + 1, -5), Quaternion.identity);
         o.transform.parent = transform;
         //Encontrando el componente script Piece y usando su funcion
         Pieces[x, y] = o.GetComponent<Piece>();
         Pieces[x, y]?.Setup(x, y, this);
+        Pieces[x, y].Move(x, y);
         return Pieces[x, y];
     }
 
