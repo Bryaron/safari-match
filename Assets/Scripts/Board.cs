@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class Board : MonoBehaviour {
 
@@ -12,6 +13,9 @@ public class Board : MonoBehaviour {
     public GameObject tileObject;
     public float cameraSizeOffset;
     public float cameraVerticalOffset;
+
+    public int PointsPerMatchs;
+
     public GameObject[] availablePieces;
 
     Tile[,] Tiles;
@@ -26,8 +30,20 @@ public class Board : MonoBehaviour {
         Pieces = new Piece[width, height];
         SetUpBoard();
         //PositionCamera();
-        StartCoroutine(SetupPieces());
+        if(GameManager.instance.gameState == GameManager.GameState.InGame) {
+            StartCoroutine(SetupPieces());
+        }
+        GameManager.instance.OnGameStateUpdated.AddListener(OnGameStateUpdated);
         
+    }
+
+    private void OnGameStateUpdated(GameManager.GameState newState) {
+        if (newState == GameManager.GameState.InGame) {
+            StartCoroutine(SetupPieces());
+        }
+        if(newState == GameManager.GameState.GameOver) {
+            ClearAllPieces();
+        }
     }
 
     private IEnumerator SetupPieces() {
@@ -63,6 +79,14 @@ public class Board : MonoBehaviour {
         var pieceToClear = Pieces[x, y];
         pieceToClear.Remove(true);
         Pieces[x, y] = null;
+    }
+
+    private void ClearAllPieces() {
+        for (var x = 0; x < width; x++) {
+            for (var y = 0; y < height; y++) {
+                ClearPieceAt(x, y);
+            }
+        }
     }
 
     private Piece CreatePieceAt(int x, int y) {
@@ -108,20 +132,20 @@ public class Board : MonoBehaviour {
     }
 
     public void TileDown(Tile tile_) {
-        if(!swappingPieces) {
+        if(!swappingPieces && GameManager.instance.gameState == GameManager.GameState.InGame) {
             startTile = tile_;
         }
     }
 
     public void TileOver(Tile tile_) {
-        if(!swappingPieces) {
+        if(!swappingPieces && GameManager.instance.gameState == GameManager.GameState.InGame) {
             endTile = tile_;
         }
     }
 
     public void TileUp(Tile tile_) {
 
-        if(!swappingPieces) {
+        if(!swappingPieces && GameManager.instance.gameState == GameManager.GameState.InGame) {
             if(startTile!=null && endTile != null && IsCloseTo(startTile, endTile)) {
                 StartCoroutine(SwapTiles());
             }
@@ -133,6 +157,7 @@ public class Board : MonoBehaviour {
         var StartPiece = Pieces[startTile.x, startTile.y];
         var EndPiece = Pieces[endTile.x, endTile.y];
 
+        AudioManager.Instance.Move();
         StartPiece.Move(endTile.x, endTile.y);
         EndPiece.Move(startTile.x, startTile.y);
 
@@ -148,6 +173,7 @@ public class Board : MonoBehaviour {
         var allMatches = startMatches.Union(endMatches).ToList();
 
         if (allMatches.Count == 0) {
+            AudioManager.Instance.Miss();
             StartPiece.Move(startTile.x, startTile.y);
             EndPiece.Move(endTile.x, endTile.y);
 
@@ -156,6 +182,7 @@ public class Board : MonoBehaviour {
         }
         else {
             ClearPieces(allMatches);
+            AwardPoints(allMatches);
         }
 
         startTile = null;
@@ -188,6 +215,7 @@ public class Board : MonoBehaviour {
             if (matches != null) {
                 newMatches = newMatches.Union(matches).ToList();
                 ClearPieces(matches);
+                AwardPoints(matches);
             }
         });
         if(newMatches.Count > 0) {
@@ -316,6 +344,10 @@ public class Board : MonoBehaviour {
 
         return foundMatches;
 
+    }
+
+    public void AwardPoints(List<Piece> allMatches) {
+        GameManager.instance.AddPoints(allMatches.Count * PointsPerMatchs);
     }
 
 }
